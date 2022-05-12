@@ -20,7 +20,7 @@ SDL_Renderer *renderer;
 
 
 bool running = true;
-//bool spawnEnemies = false;
+bool spawnEnemies = false;
 bool _pause = true;
 bool gameOver = false;
 
@@ -49,7 +49,7 @@ void Start();
 void GameLoop();
 void Update();
 void Render();
-//void SpawnEnemy();
+void SpawnEnemy();
 
 void LoadResources() {
     SDL_Surface *surface;
@@ -83,8 +83,25 @@ void LoadResources() {
 
 }
 
+void SpawnEnemy() {
+    int color = rand() % 2;
+    int lane = rand() % 2;
+    Car *car;
+
+    if (color == 0)
+        car = new Car(256 + (64 * lane), -128, renderer, CarColorYellow);
+    else
+        car = new Car(256 + (64 * lane), -128, renderer, CarColorRed);
+
+
+    car->SetDirection(-1);
+    car->SetSpeed(8);
+    enemies.push_back(car);
+}
+
 void Start() {
     gameOver = false;
+    spawnEnemies = false;
 
     roadRect.x = 256;
     roadRect.y = -64;
@@ -115,7 +132,18 @@ void Update() {
 
         player->Update();
 
-        //enemies {...}
+        for (Car *enemy : enemies) {
+            enemy->Update();
+
+            if (abs(enemy->rect.x - player->rect.x) < 18) {
+                if (enemy->rect.y < player->rect.y + 64 && enemy->rect.y + 64 > player->rect.y) {
+                    gameOver = true;
+                    explosionRect.x = (player->rect.x + enemy->rect.x) / 2 - 32;
+                    explosionRect.y = (player->rect.y + enemy->rect.y) / 2 - 32;
+                }
+            }
+        }
+
     }
 
     if (gameOver) {
@@ -125,6 +153,10 @@ void Update() {
             menuState = 8;
         }
     }
+
+    if (spawnEnemies) {
+        SpawnEnemy();
+    }
 }
 void Render() {
     SDL_RenderClear(renderer);
@@ -132,6 +164,10 @@ void Render() {
     SDL_RenderCopy(renderer, road, NULL, &roadRect);
 
     player->Draw(renderer);
+
+    for (Car *enemy : enemies) {
+        enemy->Draw(renderer);
+    }
 
     if (gameOver) {
         SDL_RenderCopy(renderer, explosion, &explosionFrame, &explosionRect);
@@ -274,6 +310,8 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
+
+        spawnEnemies = true;
 
         if (!_pause) {
             Update();
