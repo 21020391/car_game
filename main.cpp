@@ -3,6 +3,8 @@
 #include<math.h>
 #include<string>
 
+#include<SDL_mixer.h>
+#include<SDL_ttf.h>
 #include<SDL.h>
 #include<SDL_image.h>
 
@@ -15,6 +17,10 @@ using namespace std;
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 512;
 
+const int FPS = 64;
+const int countDownTime = 3;
+int total_frames = 0;
+
 SDL_Window *gWindow = NULL;
 SDL_Renderer *renderer;
 
@@ -23,12 +29,9 @@ bool running = true;
 bool spawnEnemies = false;
 bool _pause = true;
 bool gameOver = false;
+int mode = 0;
 
-
-//int mode = 0;
-
-
-//int score = 0;
+int score = 0;
 
 
 std::vector<SDL_Texture*> menuFrames;
@@ -42,6 +45,7 @@ std::vector<Car*> enemies;
 SDL_Texture *explosion;
 SDL_Rect explosionFrame;
 SDL_Rect explosionRect;
+Mix_Chunk *explosionSound;
 
 
 void LoadResources();
@@ -81,6 +85,8 @@ void LoadResources() {
 
     SDL_FreeSurface(surface);
 
+    explosionSound = Mix_LoadWAV("Explosion.wav");
+
 }
 
 void SpawnEnemy() {
@@ -100,6 +106,8 @@ void SpawnEnemy() {
 }
 
 void Start() {
+    total_frames = 0;
+    score = 0;
     gameOver = false;
     spawnEnemies = false;
 
@@ -140,7 +148,14 @@ void Update() {
                     gameOver = true;
                     explosionRect.x = (player->rect.x + enemy->rect.x) / 2 - 32;
                     explosionRect.y = (player->rect.y + enemy->rect.y) / 2 - 32;
+                    Mix_PlayChannel(MIX_DEFAULT_CHANNELS, explosionSound, 0);
                 }
+            }
+
+            if (enemy->rect.y > SCREEN_HEIGHT*2) {
+                enemies.erase(enemies.begin());
+                score ++;
+                printf("Score: %d\n", score);
             }
         }
 
@@ -154,8 +169,10 @@ void Update() {
         }
     }
 
-    if (spawnEnemies) {
-        SpawnEnemy();
+    int devider = (mode * 2 == 0?1:mode * 2);
+
+    if (spawnEnemies && total_frames % (FPS / devider) == 0) {
+    SpawnEnemy();
     }
 }
 void Render() {
@@ -182,20 +199,39 @@ void Render() {
 
 
 int main(int argc, char* argv[]) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        printf("SDL failed to initialize!\n");
+        return EXIT_FAILURE;
+    }
 
     if (IMG_Init(IMG_INIT_PNG) < 0) {
         printf("SDL_image failed to initialize!\n");
         return EXIT_FAILURE;
     }
 
+    if (Mix_Init(MIX_INIT_MP3) < 0) {
+        printf("SDL_mixer failed to initialize!\n");
+        return EXIT_FAILURE;
+    }
+
+    if (TTF_Init() < 0) {
+        printf("SDL_ttf failed to initialize!\n");
+        return EXIT_FAILURE;
+    }
+
     gWindow = SDL_CreateWindow("my_car_game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
     renderer = SDL_CreateRenderer(gWindow, 0, SDL_RENDERER_ACCELERATED);
+
+    Mix_OpenAudio(22050, MIX_DEFAULT_FORMAT, 2, 4096);
 
     LoadResources();
 
     Start();
 
+    Uint32 start;
+
     while (running) {
+        start = SDL_GetTicks();
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -311,18 +347,30 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        spawnEnemies = true;
+        if (total_frames / FPS == countDownTime) {
+            spawnEnemies = true;
+        }
 
         if (!_pause) {
             Update();
         }
 
         Render();
+
+        total_frames ++;
+
+        if (1000/FPS > SDL_GetTicks() - start) {
+            SDL_Delay(1000/FPS-(SDL_GetTicks() - start));
+        }
     }
 
     enemies.clear();
+    Mix_FreeChunk(explosionSound);
+    Mix_CloseAudio();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(gWindow);
+    TTF_Quit();
+    Mix_Quit();
     IMG_Quit();
     SDL_Quit();
 
