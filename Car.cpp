@@ -3,8 +3,8 @@
 Car::Car(int x, int y, SDL_Renderer *renderer, CarColor color) {
     this->rect.x = x;
     this->rect.y = y;
-    this->rect.w = 64;
-    this->rect.h = 64;
+    this->rect.w = CAR_WIDTH;
+    this->rect.h = CAR_HEIGHT;
     this->defaultLanePos = x;
 
     const char *path = nullptr;
@@ -55,7 +55,7 @@ void Car::Update() {
             this->rect.x += 2;
             rotation = 10;
         }
-        else if (lane == 0 && this->rect.x > defaultLanePos - 64) {
+        else if (lane == 0 && this->rect.x > defaultLanePos - CAR_WIDTH) {
             this->rect.x -= 2;
             rotation = -10;
         }
